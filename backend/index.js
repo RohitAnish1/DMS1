@@ -7,7 +7,11 @@ const authenticateToken = require('./middleware/auth'); // Import the new middle
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*', // For now, allow all, but you can set this to your Vercel URL later
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Routes
