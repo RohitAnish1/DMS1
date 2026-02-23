@@ -69,7 +69,8 @@ router.post('/register', async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Registration error:', err);
-        res.status(500).json({ error: 'Server error during registration' });
+        // Include the actual error message for debugging (remove in production later)
+        res.status(500).json({ error: 'Server error during registration: ' + err.message });
     } finally {
         client.release();
     }
