@@ -3,13 +3,11 @@ const router = express.Router();
 const db = require('../db');
 const { parseISO, addMinutes, getDay } = require('date-fns');
 
-// Book Appointment
 router.post('/book', async (req, res) => {
-    const { doctorId, date, time, reason } = req.body; 
-    const patientId = req.user.roleId; // Extracted from authenticated user payload
-    const userId = req.user.userId; // User ID from JWT
+    const { doctorId, date, time, reason } = req.body;
+    const patientId = req.user.roleId;
+    const userId = req.user.userId;
 
-    // Ensure the authenticated user is a patient
     if (req.user.role !== 'patient') {
         return res.status(403).json({ error: 'Only patients can book appointments' });
     }
@@ -26,7 +24,6 @@ router.post('/book', async (req, res) => {
         const startTimestamp = new Date(startTimeStr);
         const dow = getDay(startTimestamp);
 
-        // 1. Get slot duration and validate doctor works today
         const availRes = await client.query(
             'SELECT slot_duration FROM doctor_availability WHERE doctor_id = $1 AND day_of_week = $2 AND is_active = true',
             [doctorId, dow]
@@ -40,8 +37,6 @@ router.post('/book', async (req, res) => {
         const duration = availRes.rows[0].slot_duration;
         const endTimestamp = addMinutes(startTimestamp, duration);
 
-        // 2. Check for overlap - Lock the rows
-        // We lock any appointment that overlaps. If we find any, we abort.
         const conflictRes = await client.query(
             `SELECT id FROM appointments 
          WHERE doctor_id = $1 
@@ -59,7 +54,6 @@ router.post('/book', async (req, res) => {
             return res.status(409).json({ error: 'Slot already booked' });
         }
 
-        // 3. Insert
         await client.query(
             `INSERT INTO appointments (doctor_id, patient_id, start_time, end_time, reason, status, created_at)
         VALUES ($1, $2, $3, $4, $5, 'scheduled', NOW())`,
@@ -78,16 +72,14 @@ router.post('/book', async (req, res) => {
     }
 });
 
-// Get Appointments for a user (patient or doctor)
 router.get('/', async (req, res) => {
-    const { userId, role } = req.user; // Securely extracted from JWT middleware 'req.user'
+    const { userId, role } = req.user;
 
     try {
         let query = '';
         let params = [];
 
         if (role === 'doctor') {
-            // Need doctor_id from userId
             const dRes = await db.query('SELECT id FROM doctors WHERE user_id = $1', [userId]);
             if (dRes.rows.length === 0) return res.json([]);
             query = `SELECT a.*, u.full_name as patient_name 
@@ -97,7 +89,6 @@ router.get('/', async (req, res) => {
                      WHERE a.doctor_id = $1 ORDER BY a.start_time`;
             params = [dRes.rows[0].id];
         } else {
-            // Need patient_id
             const pRes = await db.query('SELECT id FROM patients WHERE user_id = $1', [userId]);
             if (pRes.rows.length === 0) return res.json([]);
             query = `SELECT a.*, u.full_name as doctor_name 
@@ -110,6 +101,35 @@ router.get('/', async (req, res) => {
 
         const result = await db.query(query, params);
         res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+router.put('/:id/cancel', async (req, res) => {
+    const { id } = req.params;
+    const { role, roleId } = req.user;
+
+    try {
+        const apptRes = await db.query('SELECT * FROM appointments WHERE id = $1', [id]);
+
+        if (apptRes.rows.length === 0) {
+            return res.status(404).json({ error: 'Appointment not found' });
+        }
+
+        const appt = apptRes.rows[0];
+
+        if (role === 'patient' && appt.patient_id !== roleId) {
+            return res.status(403).json({ error: 'Unauthorized to cancel' });
+        }
+        if (role === 'doctor' && appt.doctor_id !== roleId) {
+            return res.status(403).json({ error: 'Unauthorized to cancel' });
+        }
+
+        await db.query("UPDATE appointments SET status = 'cancelled' WHERE id = $1", [id]);
+
+        res.json({ message: 'Appointment cancelled successfully' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });

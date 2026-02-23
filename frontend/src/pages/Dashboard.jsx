@@ -8,12 +8,16 @@ export default function Dashboard() {
     const [appointments, setAppointments] = useState([]);
     const [doctors, setDoctors] = useState([]);
 
-    useEffect(() => {
+    const fetchAppointments = () => {
         if (!user) return;
-
         request(`/appointments?userId=${user.id}&role=${user.role}`)
             .then(setAppointments)
             .catch(err => console.error(err));
+    };
+
+    useEffect(() => {
+        if (!user) return;
+        fetchAppointments();
 
         if (user.role === 'patient') {
             request('/doctors')
@@ -21,6 +25,16 @@ export default function Dashboard() {
                 .catch(err => console.error(err));
         }
     }, [user]);
+
+    const handleCancel = async (apptId) => {
+        if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+        try {
+            await request(`/appointments/${apptId}/cancel`, { method: 'PUT' });
+            fetchAppointments(); // Refresh the list
+        } catch (err) {
+            alert(err.message);
+        }
+    };
 
     if (!user) return null;
 
@@ -65,6 +79,7 @@ export default function Dashboard() {
                                     <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Date & Time</th>
                                     <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.875rem', color: 'var(--text-muted)' }}>{user.role === 'patient' ? 'Doctor' : 'Patient'}</th>
                                     <th style={{ padding: '1rem', textAlign: 'left', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Status</th>
+                                    <th style={{ padding: '1rem', textAlign: 'right', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -90,6 +105,17 @@ export default function Dashboard() {
                                             }}>
                                                 {app.status.toUpperCase()}
                                             </span>
+                                        </td>
+                                        <td style={{ padding: '1rem', textAlign: 'right' }}>
+                                            {app.status === 'scheduled' && (
+                                                <button
+                                                    onClick={() => handleCancel(app.id)}
+                                                    className="btn btn-outline"
+                                                    style={{ color: 'var(--danger)', borderColor: 'var(--danger)', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
