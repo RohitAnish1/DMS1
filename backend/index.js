@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+const authenticateToken = require('./middleware/auth'); // Import the new middleware
+
 const app = express();
 
 // Middleware
@@ -11,7 +13,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/doctors', require('./routes/doctors'));
-app.use('/api/appointments', require('./routes/appointments'));
+app.use('/api/appointments', authenticateToken, require('./routes/appointments')); // Apply middleware here
 
 // Health check
 app.get('/', (req, res) => {

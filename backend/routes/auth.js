@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Register
 router.post('/register', async (req, res) => {
@@ -45,11 +45,22 @@ router.post('/register', async (req, res) => {
                 [userId, dob, gender, address]
             );
         } else if (role === 'doctor') {
-            const { specialization, consultationFee } = profileData || {};
-            await client.query(
-                'INSERT INTO doctors (user_id, specialization, consultation_fee) VALUES ($1, $2, $3)',
+            const { specialization, consultationFee, startTime, endTime } = profileData || {};
+            const docRes = await client.query(
+                'INSERT INTO doctors (user_id, specialization, consultation_fee) VALUES ($1, $2, $3) RETURNING id',
                 [userId, specialization, consultationFee]
             );
+            const doctorId = docRes.rows[0].id;
+
+            // Automatically set availability for all days of the week based on provided times
+            const days = [0, 1, 2, 3, 4, 5, 6];
+            for (const day of days) {
+                await client.query(
+                    `INSERT INTO doctor_availability (doctor_id, day_of_week, start_time, end_time, slot_duration, is_active)
+                     VALUES ($1, $2, $3, $4, 30, true)`,
+                    [doctorId, day, startTime || '09:00', endTime || '17:00']
+                );
+            }
         }
 
         await client.query('COMMIT');

@@ -68,11 +68,6 @@ router.get('/:id/slots', async (req, res) => {
         // 3. Generate slots
         const slots = [];
         while (isBefore(currentSlot, endSlot)) {
-            // Check if this slot matches any booked start time
-            // Ideally we check overlap, but for fixed slots equality is okay
-            // We'll use a tolerance or strict equality on ISO string
-            // But Date.toISOString() might differ by milliseconds or timezone if not careful
-            // Robust way: compare timestamps
 
             const currentTs = currentSlot.getTime();
             const isBooked = apptsRes.rows.some(a => {

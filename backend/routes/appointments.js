@@ -5,8 +5,14 @@ const { parseISO, addMinutes, getDay } = require('date-fns');
 
 // Book Appointment
 router.post('/book', async (req, res) => {
-    const { doctorId, patientId, date, time, reason } = req.body;
-    // date: YYYY-MM-DD, time: HH:mm
+    const { doctorId, date, time, reason } = req.body; 
+    const patientId = req.user.roleId; // Extracted from authenticated user payload
+    const userId = req.user.userId; // User ID from JWT
+
+    // Ensure the authenticated user is a patient
+    if (req.user.role !== 'patient') {
+        return res.status(403).json({ error: 'Only patients can book appointments' });
+    }
 
     if (!doctorId || !patientId || !date || !time) {
         return res.status(400).json({ error: 'Missing fields' });
@@ -74,8 +80,7 @@ router.post('/book', async (req, res) => {
 
 // Get Appointments for a user (patient or doctor)
 router.get('/', async (req, res) => {
-    const { userId, role } = req.query;
-    // Secure logic would extract this from JWT middleware 'req.user'
+    const { userId, role } = req.user; // Securely extracted from JWT middleware 'req.user'
 
     try {
         let query = '';
