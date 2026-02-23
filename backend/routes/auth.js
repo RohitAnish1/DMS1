@@ -6,7 +6,7 @@ const db = require('../db');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-// Register
+
 router.post('/register', async (req, res) => {
     const { email, password, fullName, phone, role, profileData } = req.body;
 
@@ -18,18 +18,15 @@ router.post('/register', async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // Check if user exists
         const userCheck = await client.query('SELECT * FROM users WHERE email = $1', [email]);
         if (userCheck.rows.length > 0) {
             await client.query('ROLLBACK');
             return res.status(400).json({ error: 'Email already exists' });
         }
 
-        // Hash password
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(password, salt);
 
-        // Insert user
         const userRes = await client.query(
             `INSERT INTO users (email, password_hash, full_name, phone, role, is_active) 
        VALUES ($1, $2, $3, $4, $5, true) RETURNING id`,
@@ -37,7 +34,6 @@ router.post('/register', async (req, res) => {
         );
         const userId = userRes.rows[0].id;
 
-        // Handle role specific data
         if (role === 'patient') {
             const { dob, gender, address } = profileData || {};
             await client.query(
@@ -52,7 +48,6 @@ router.post('/register', async (req, res) => {
             );
             const doctorId = docRes.rows[0].id;
 
-            // Automatically set availability for all days of the week based on provided times
             const days = [0, 1, 2, 3, 4, 5, 6];
             for (const day of days) {
                 await client.query(
@@ -69,14 +64,12 @@ router.post('/register', async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Registration error:', err);
-        // Include the actual error message for debugging (remove in production later)
         res.status(500).json({ error: 'Server error during registration: ' + err.message });
     } finally {
         client.release();
     }
 });
 
-// Login
 router.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -92,7 +85,6 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ error: 'Invalid credentials' });
         }
 
-        // Get role specific ID
         let roleId = null;
         if (user.role === 'patient') {
             const pRes = await db.query('SELECT id FROM patients WHERE user_id = $1', [user.id]);

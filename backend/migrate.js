@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
-// Use the URL from command line or environment variable
 const dbUrl = process.argv[2] || process.env.DATABASE_URL;
 
 if (!dbUrl) {

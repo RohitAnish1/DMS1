@@ -8,7 +8,7 @@ export default function Navbar() {
 
     return (
         <nav className="container" style={{ height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', fontSize: '1.5rem', color: 'var(--primary)' }}>
+            <Link to={user ? "/dashboard" : "/"} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', fontSize: '1.5rem', color: 'var(--primary)' }}>
                 <Stethoscope size={28} /> MedSys
             </Link>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
